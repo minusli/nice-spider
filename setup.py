@@ -9,11 +9,12 @@ setup(
     version='0.0.1',
     author='minusli',
     author_email='minusli@foxmail.com',
-    url='',
+    url='https://github.com/657143946/nice-spider',
     description='easy nice spider: download & handle',
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(exclude=["tests"]),
+    python_requires='>=3',
     install_requires=[
         "pytest",
         "requests",
