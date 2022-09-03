@@ -1,4 +1,4 @@
-# minusSpider User Guide
+# nice-spider User Guide
 
 ------
 
