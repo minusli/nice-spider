@@ -13,7 +13,7 @@ setup(
     description='easy nice spider: download & handle',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages(include=["nicespider"]),
+    packages=setuptools.find_packages(exclude=["tests"]),
     install_requires=[
         "pytest",
         "requests",
