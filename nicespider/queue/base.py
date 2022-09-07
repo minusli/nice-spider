@@ -1,6 +1,13 @@
 from abc import ABCMeta, abstractmethod
+from enum import Enum
 
 from nicespider.reqresp import Request
+
+
+class Status(Enum):
+    FAILED = -1
+    TODO = 0
+    DOING = 1
 
 
 class Queue(metaclass=ABCMeta):

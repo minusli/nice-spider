@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='nice-spider',
-    version='0.0.1',
+    version='0.0.2',
     author='minusli',
     author_email='minusli@foxmail.com',
     url='https://github.com/657143946/nice-spider',
@@ -18,7 +18,7 @@ setup(
     install_requires=[
         "pytest",
         "requests",
-        "nice-sql==0.0.5"
+        "nice-sql==0.0.7"
     ],
     entry_points={},
     license="Apache License 2.0"

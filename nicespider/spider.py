@@ -1,5 +1,7 @@
 import logging
+import signal
 import threading
+from enum import Enum
 from typing import List
 
 import time
@@ -7,60 +9,57 @@ import time
 from nicespider.download import Download
 from nicespider.handle import Handler
 from nicespider.interceptor import Interceptor
-from nicespider.queue import Queue, MemQueue
+from nicespider.queue import MemQueue
 from nicespider.reqresp import Request
 
 
 class Spider:
-    def __init__(self, workers=1, queue=None):
-        self.workers = workers
-        self.queue: Queue = queue or MemQueue()
+    class Status(Enum):
+        INIT = 0
+        START = 1
+        STOP = 2
 
-        self.interceptors: List[Interceptor] = []
-        self.downloads: List[Download] = []
-        self.handlers: List[Handler] = []
+    interceptors: List[Interceptor] = []
+    downloads: List[Download] = []
+    handlers: List[Handler] = []
 
-    def _worker(self):
+    workers = 1
+    queue = MemQueue()
+    status = Status.INIT
+
+    @classmethod
+    def worker(cls):
         while True:
+            if cls.status == cls.Status.STOP:
+                break
             req = None
             # noinspection PyBroadException
             try:
-                req = self.queue.pull()
-                if self.execute(req=req):
-                    self.queue.success(req)
+                req = cls.queue.pull()
+                if cls.execute(req=req):
+                    cls.queue.success(req)
                 else:
-                    self.queue.fail(req)
+                    cls.queue.fail(req)
             except Exception as e:
                 logging.exception(e)
                 if req:
-                    self.queue.fail(req)
+                    cls.queue.fail(req)
 
-    def add_download(self, *downloads: Download) -> "Spider":
-        self.downloads.extend(downloads)
-        return self
-
-    def add_handler(self, *handlers: Handler) -> "Spider":
-        self.handlers.extend(handlers)
-        return self
-
-    def add_interceptor(self, *interceptors: Interceptor) -> "Spider":
-        self.interceptors.extend(interceptors)
-        return self
-
-    def submit(self, *reqs: Request) -> "Spider":
+    @classmethod
+    def submit(cls, *reqs: Request):
         for req in reqs:
-            self.queue.push(req)
-        return self
+            cls.queue.push(req)
 
-    def execute(self, req: Request) -> bool:
+    @classmethod
+    def execute(cls, req: Request) -> bool:
         # interceptor
-        for interceptor in self.interceptors:
+        for interceptor in cls.interceptors:
             if not interceptor.intercept(req):
                 return True
 
         # download
         download = None
-        for d in self.downloads:
+        for d in cls.downloads:
             if d.match(req):
                 download = d
                 break
@@ -72,7 +71,7 @@ class Spider:
 
         # handler
         handler = None
-        for h in self.handlers:
+        for h in cls.handlers:
             if h.match(req, resp):
                 handler = h
                 break
@@ -82,13 +81,24 @@ class Spider:
 
         return success
 
-    def start(self):
+    @classmethod
+    def start(cls):
+        signal.signal(signal.SIGINT, lambda signum, frame: cls.stop())
+        signal.signal(signal.SIGTERM, lambda signum, frame: cls.stop())
+
         threads = []
-        for i in range(0, self.workers):
-            t = threading.Thread(target=self._worker, name=f"Worker-{i}", daemon=True)
+        for i in range(0, cls.workers):
+            t = threading.Thread(target=cls.worker, name=f"Worker-{i}")
             threads.append(t)
             t.start()
 
-        while True:
-            logging.info(f"workers={[1 if t.is_alive() else 0 for t in threads]}, requests={self.queue.size()}")
-            time.sleep(5)
+        threading.Thread(target=cls.heartbeat, args=(threads,), name="heartbeat", daemon=True)
+
+    @classmethod
+    def stop(cls):
+        cls.status = cls.Status.STOP
+
+    @classmethod
+    def heartbeat(cls, threads: List[threading.Thread]):
+        logging.info(f"requests={cls.queue.size()}, workers={[1 if t.is_alive() else 0 for t in threads]}")
+        time.sleep(5)

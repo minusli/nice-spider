@@ -2,14 +2,14 @@ import random
 
 import nicesql
 import time
-from nicesql.sqlengine.sqlite import Sqlite
+from nicesql.sqlengine.mysql import Mysql
 from nicesql.sqlmodel import SqlModel
 
 from nicespider.queue import Queue
 from nicespider.queue.base import Status
 from nicespider.reqresp import Request
 
-__db_alias__ = "__sqlite_queue_db__"
+__db_alias__ = "__mysql_queue_db__"
 
 
 class Task(SqlModel):
@@ -22,8 +22,10 @@ class Task(SqlModel):
 
 
 class Dao:
-    def __init__(self, db):
-        nicesql.register(Sqlite(db), alias=__db_alias__)
+    def __init__(self, dbname: str, host: str = '127.0.0.1', port: int = 3306, user: str = None, password: str = None):
+        nicesql.register(Mysql(
+            host=host, port=port, dbname=dbname, user=user, password=password
+        ), alias=__db_alias__)
         Dao.init_tables()
 
     @classmethod
@@ -31,24 +33,17 @@ class Dao:
         nicesql.execute("""
             create table if not exists nicespider_task_queue
             (
-                id          INTEGER not null primary key,
+                id          INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
                 content     TEXT,
-                status      INTEGER,
-                create_time DATETIME default CURRENT_TIMESTAMP,
-                update_time DATETIME default CURRENT_TIMESTAMP
+                status      TINYINT,
+                create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                
+                KEY `idx_status` (`status`),
+                KEY `idx_create_time` (`create_time`), 
+                KEY `idx_update_time` (`update_time`) 
             );
         """, engine=__db_alias__)
-
-        nicesql.execute("""
-           create trigger if not exists nicespider_task_queue_onupdate after update on nicespider_task_queue
-           begin
-               update nicespider_task_queue SET update_time = datetime('now') WHERE id = NEW.id;
-           end;
-       """, engine=__db_alias__)
-
-        nicesql.execute("create index if not exists idx_nicespider_task_queue_status on nicespider_task_queue (status);", engine=__db_alias__)
-        nicesql.execute("create index if not exists idx_nicespider_task_queue_create_time on nicespider_task_queue (create_time);", engine=__db_alias__)
-        nicesql.execute("create index if not exists idx_nicespider_task_queue_update_time on nicespider_task_queue (update_time);", engine=__db_alias__)
 
     # noinspection PyShadowingBuiltins
     @nicesql.select("select * from nicespider_task_queue where id = {id}", model=Task, first=True, engine=__db_alias__)
@@ -77,10 +72,17 @@ class Dao:
     def count_by_status(self, status: Status):
         pass
 
+    @nicesql.bind("drop table if exists nicespider_task_queue", engine=__db_alias__)
+    def drop_for_test(self):
+        pass
 
-class SqliteQueue(Queue):
-    def __init__(self, db: str):
-        self.dao = Dao(db)
+
+# noinspection DuplicatedCode
+class MysqlQueue(Queue):
+    def __init__(self, dbname: str, host: str = '127.0.0.1', port: int = 3306, user: str = None, password: str = None):
+        self.dao = Dao(
+            host=host, port=port, dbname=dbname, user=user, password=password
+        )
 
     def pull(self) -> Request:
         while True:

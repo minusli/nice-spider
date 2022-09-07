@@ -1,19 +1,20 @@
 import math
 import pytest
 
-from nicespider.queue import SqliteQueue
 from nicespider.queue.base import Status
+from nicespider.queue.mysql import MysqlQueue
 from nicespider.reqresp import Request
 
 
 @pytest.fixture(scope="module")
 def q():
-    queue = SqliteQueue(":memory:")
+    queue = MysqlQueue(dbname='test', user='test', password='test')
     yield queue
+    queue.dao.drop_for_test()
 
 
 # noinspection DuplicatedCode
-def test_sqliteq(q: SqliteQueue):
+def test_mysqlq(q: MysqlQueue):
     count = 57
     reqs = [Request(f"url_{i}") for i in range(count)]
     for req in reqs:

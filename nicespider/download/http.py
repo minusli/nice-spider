@@ -3,7 +3,7 @@ from http import HTTPStatus
 import requests
 
 from nicespider import utils
-from nicespider.download import Download
+from nicespider.download.base import Download
 from nicespider.reqresp import Request, Response
 
 
