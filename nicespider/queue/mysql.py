@@ -24,7 +24,7 @@ class Task(SqlModel):
 class Dao:
     def __init__(self, dbname: str, host: str = '127.0.0.1', port: int = 3306, user: str = None, password: str = None):
         nicesql.register(Mysql(
-            host=host, port=port, dbname=dbname, user=user, password=password
+            host=host, port=port, dbname=dbname, user=user, password=password, maxconnections=10
         ), alias=__db_alias__)
         Dao.init_tables()
 
@@ -79,14 +79,13 @@ class Dao:
 
 # noinspection DuplicatedCode
 class MysqlQueue(Queue):
-    def __init__(self, dbname: str, host: str = '127.0.0.1', port: int = 3306, user: str = None, password: str = None):
-        self.dao = Dao(
-            host=host, port=port, dbname=dbname, user=user, password=password
-        )
+    def __init__(self, dbname: str, host: str = '127.0.0.1', port: int = 3306, user: str = None, password: str = None, parallel: int = 10):
+        self.dao = Dao(host=host, port=port, dbname=dbname, user=user, password=password)
+        self.parallel = parallel
 
     def pull(self) -> Request:
         while True:
-            task = self.dao.get_by_status(Status.TODO, random.randint(0, 10))
+            task = self.dao.get_by_status(Status.TODO, random.randint(0, self.parallel - 1))
             if not task:
                 task = self.dao.get_by_status(Status.TODO, 0)
 

@@ -78,13 +78,15 @@ class Dao:
         pass
 
 
+# noinspection DuplicatedCode
 class SqliteQueue(Queue):
-    def __init__(self, db: str):
+    def __init__(self, db: str, parallel: int = 10):
         self.dao = Dao(db)
+        self.parallel = parallel
 
     def pull(self) -> Request:
         while True:
-            task = self.dao.get_by_status(Status.TODO, random.randint(0, 10))
+            task = self.dao.get_by_status(Status.TODO, random.randint(0, self.parallel - 1))
             if not task:
                 task = self.dao.get_by_status(Status.TODO, 0)
 
