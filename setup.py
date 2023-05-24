@@ -18,7 +18,7 @@ setup(
     install_requires=[
         "pytest",
         "requests",
-        "nice-sql==0.0.7"
+        "nice-sql==1.0.0"
     ],
     entry_points={},
     license="Apache License 2.0"
